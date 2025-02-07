@@ -13,4 +13,5 @@ $$
 $$
 \omega(0, \cdot) = \omega_0.
 $$
+
 where $£$ is the usual Lie derivative. In ?? a new method to approximate this system has been proven. We implement it here.
