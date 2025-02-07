@@ -48,6 +48,7 @@ def step(pos, vec_matrix, initial_positions, dt, delta, NM):
         dt (float): 
         delta (float): 
     """
+    # The following operation is to compute the operation matrix vector
     vec = jnp.einsum('...ij,...j->...i', vec_matrix, initial_positions)
     vel = Velocity_at_Field(pos, vec, delta, NM)
     grad_vel = gradient_of_flow_at_a_point(pos, vec, dt, delta, NM)
