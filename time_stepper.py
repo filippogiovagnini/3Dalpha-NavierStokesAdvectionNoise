@@ -61,7 +61,7 @@ def gradient_of_flow_at_a_point(pos, vec, dt, delta, NM):
     # diffs has shape (NM, NM, NM, NM, NM, NM, 3)
     diffs = pos[:, :, :, jnp.newaxis, jnp.newaxis, jnp.newaxis, :] - pos[jnp.newaxis, jnp.newaxis, jnp.newaxis, :, :, :, :]
     rsq = ((diffs)**2).sum(axis=-1)
-    denominator1 = jnp.where(rsq<1e-2, 1e-2, rsq) # prevent division by zero numerically, sensitive, before it was 1e-12
+    denominator1 = jnp.where(rsq<1e-3, 1e-3, rsq) # prevent division by zero numerically, sensitive, before it was 1e-12
     denominator2 = (1 - jnp.exp(-(rsq / delta)**3)) / jnp.power(denominator1, 3/2)
     denominator3 = (1 - jnp.exp(-(rsq / delta)**3)) / jnp.power(denominator1, 5/2) # THIS IS NOT EXACT!! TO BE CHANGED
     #mol = (1 - L(rsq /delta**2 )*jnp.exp(-rsq /delta**2)) # uses p-th order kernel. specified by L
@@ -94,7 +94,7 @@ def integrate(step, pos, vec_matrix, initial_positions, dt, delta, NM):
     """_integration of scheme_
     """
     init = stacked(pos, vec_matrix, initial_positions)
-    T = 2 #2**-4 # affect nt. 
+    T = 32 #2**-4 # affect nt. 
     dt = 2 ** -3 # affect nt. # -4 seems ecessive
     visc = 1 #this is viscosity and causes points to drift away from another, see the scale on the x,y axis. 
     nt = int(T/dt)
@@ -112,7 +112,6 @@ def integrate(step, pos, vec_matrix, initial_positions, dt, delta, NM):
     carry, all = jax.lax.scan(body, init, dts)
     return carry, all
 
-# TO BE MODIFIEEEEEEEDDDD!!!!!!!!
 def stacked(pos, vec_matrix, initial_positions):
     first = pos # Shape (10, 10, 10, 3)
     second = vec_matrix # Shape (10, 10, 10, 3, 3)

@@ -9,7 +9,7 @@ import jax.numpy as jnp
 import jax.random as random
 from mpl_toolkits.mplot3d import Axes3D
 from time_stepper import *
-
+from mesh import *
 
 def plot_vectors(pos, vec, sample_rate=2, zoom_out_factor=1.2):
     """
@@ -67,20 +67,30 @@ def plot_vectors(pos, vec, sample_rate=2, zoom_out_factor=1.2):
     ax.set_zlabel("Z")
     ax.set_title("3D visualization of discrete elements of vorticity for Navier Stokes")
     ax.legend()
-    plt.show()
 
+
+# Parameters
+# NMˆ3 is the number of particles in the 3D grid
+# delta is the smoothness parameter of the kernel
+# dt is the time step for this one-step integration
 NM = 10
 delta = 0.1
-dt = 0.1
+dt = 0.01
+
+
+# Random initial positions and vectors
 key = random.PRNGKey(0)
-pos = random.uniform(key, shape=(NM, NM, NM, 3))
 vec = random.uniform(key, shape=(NM, NM, NM, 3))
 carr = random.uniform(key, shape=(NM, NM, NM))
-vec_matrix = random.uniform(key, shape=(NM, NM, NM, 3, 3))
+vec_matrix = jnp.tile(jnp.eye(3), (NM, NM, NM, 1, 1))
 print('Test the function CFE')
-initial_positions = pos
 
-#plot_vectors(pos, vec, sample_rate=2, zoom_out_factor=1.5)
+X, Y, Z = mesh_creation(NM, NM, NM, 0, 1, 0, 1, 0, 1)
+initial_pos = jnp.stack((X, Y, Z), axis=-1)
+initial_vorticity = vec
+initial_positions = initial_pos
+
+plot_vectors(initial_pos, initial_vorticity, sample_rate=2, zoom_out_factor=1.5)
 
 '''
 carry, all = integrate(step, pos, vec_matrix, initial_positions, dt, delta, NM)
@@ -88,17 +98,14 @@ pos, vec_matrix, initial_positions = unstacked(carry)
 vec = jnp.einsum('...ij,...j->...i', vec_matrix, initial_positions)
 '''
 
-
 vec = jnp.einsum('...ij,...j->...i', vec_matrix, initial_positions)
-vel = Velocity_at_Field(pos, vec, delta, NM)
-grad_vel = gradient_of_flow_at_a_point(pos, vec, dt, delta, NM)
-pos = pos + dt*vel
-# vec_matrix = vec_matrix + dt * (grad_vel @ vec_matrix)
+vel = Velocity_at_Field(initial_pos, initial_vorticity, delta, NM)
+grad_vel = gradient_of_flow_at_a_point(initial_pos, initial_vorticity, dt, delta, NM)
+updated_position = initial_pos + dt*vel
 vec_matrix += dt * jnp.einsum('abcij, abcjk -> abcik', grad_vel, vec_matrix)
-
-vec = jnp.einsum('abcij, abcj -> abci', vec_matrix, initial_positions)
+updated_vorticity = jnp.einsum('abcij, abcj -> abci', vec_matrix, initial_positions)
 
 # Call the plotting function
-plot_vectors(pos, vec, sample_rate=2, zoom_out_factor=1.5)
+plot_vectors(updated_position, updated_vorticity, sample_rate=2, zoom_out_factor=1.5)
 
-
+plt.show()

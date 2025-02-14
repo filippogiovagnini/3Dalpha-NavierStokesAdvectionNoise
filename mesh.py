@@ -33,8 +33,7 @@ def mesh_creation(nx,
     # yxf, yyf = jnp.meshgrid(xc, yf, indexing='xy')  # the y faces positions
     xxc, yyc, zzc = jnp.meshgrid(xc, yc, zc, indexing='xy')  # the c enters
     print("Mesh created")
-    arguments = [nx, ny, nz, dx, dy, dz, xc, yc, zc, xxc, yyc, zzc]
-    return arguments
+    return xxc, yyc, zzc
 
 
 def mesh_creation_2d(nx,
