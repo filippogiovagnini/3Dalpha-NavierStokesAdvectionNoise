@@ -10,8 +10,10 @@ import jax.random as random
 from mpl_toolkits.mplot3d import Axes3D
 from time_stepper import *
 from mesh import *
+from matplotlib.animation import FuncAnimation
 
-def plot_vectors(pos, vec, sample_rate=2, zoom_out_factor=1.2):
+
+def plot_vectors(ax, pos, vec, sample_rate=2, zoom_out_factor=1.2):
     """
     Plots particles at pos[i, j, k, :] with vectors vec[i, j, k, :].
     
@@ -21,8 +23,7 @@ def plot_vectors(pos, vec, sample_rate=2, zoom_out_factor=1.2):
         sample_rate: int - how many points to skip to avoid cluttering
         zoom_out_factor: float - expands the plot range (default 1.2 means 20% wider)
     """
-    fig = plt.figure(figsize=(12, 12))
-    ax = fig.add_subplot(111, projection='3d')
+    ax.clear()
 
     # Extract downsampled positions and vectors
     X = pos[::sample_rate, ::sample_rate, ::sample_rate, 0].flatten()
@@ -85,7 +86,7 @@ key = random.PRNGKey(0)
 
 # This is to have constant initial vorticity
 # Try with [1, 0, 0] and [0, 1, 0] as well, and [1, 0.5, 0.7]
-constant_vector = jnp.array([0, 1, 0])
+constant_vector = jnp.array([1, 1, 0])
 vec = jnp.tile(constant_vector, (NM, NM, NM, 1))
 
 carr = random.uniform(key, shape=(NM, NM, NM))
@@ -97,7 +98,13 @@ initial_pos = jnp.stack((X, Y, Z), axis=-1)
 initial_vorticity = vec
 initial_positions = initial_pos
 
-plot_vectors(initial_pos, initial_vorticity, sample_rate=2, zoom_out_factor=1.5)
+# Call the plotting function
+
+fig = plt.figure(figsize=(12, 12))
+ax = fig.add_subplot(111, projection='3d')
+
+plot_vectors(ax, initial_pos, initial_vorticity, sample_rate=2, zoom_out_factor=1.5)
+plt.show()
 
 '''
 carry, all = integrate(step, pos, vec_matrix, initial_positions, dt, delta, NM)
@@ -108,6 +115,22 @@ vec = jnp.einsum('...ij,...j->...i', vec_matrix, initial_positions)
 vec = jnp.einsum('...ij,...j->...i', vec_matrix, initial_positions)
 delta = 0.1
 dt = 0.003
+
+fig = plt.figure(figsize=(12, 12))
+ax = fig.add_subplot(111, projection='3d')
+
+def update(frame):
+    global initial_pos, vec_matrix, initial_positions
+    delta = 0.5
+    dt = 0.001
+    updated_position, vec_matrix = step(initial_pos, vec_matrix, initial_positions, dt, delta, NM)
+    updated_vorticity = jnp.einsum('abcij, abcj -> abci', vec_matrix, initial_positions)
+    plot_vectors(ax, updated_position, updated_vorticity, sample_rate=2, zoom_out_factor=1.5)
+    initial_pos = updated_position
+
+ani = FuncAnimation(fig, update, frames=100, interval=50)
+plt.show()
+
 updated_position, vec_matrix = step(initial_pos, vec_matrix, initial_positions, dt, delta, NM)
 
 '''
@@ -119,6 +142,6 @@ vec_matrix += dt * jnp.einsum('abcij, abcjk -> abcik', grad_vel, vec_matrix)
 updated_vorticity = jnp.einsum('abcij, abcj -> abci', vec_matrix, initial_positions)
 
 # Call the plotting function
-plot_vectors(updated_position, updated_vorticity, sample_rate=2, zoom_out_factor=1.5)
+#plot_vectors(updated_position, updated_vorticity, sample_rate=2, zoom_out_factor=1.5)
 
-plt.show()
+#plt.show()
