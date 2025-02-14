@@ -24,7 +24,7 @@ def Velocity_at_Field(pos, vec, delta, NM):
     diffs = pos[:, :, :, jnp.newaxis, jnp.newaxis, jnp.newaxis, :] - pos[jnp.newaxis, jnp.newaxis, jnp.newaxis, :, :, :, :]
     rsq = ((diffs)**2).sum(axis=-1)
     denominator1 = jnp.where(rsq<1e-12, 1e-12, rsq) # prevent division by zero numerically, sensitive
-    denominator2 = jnp.power(denominator1, 3/2)
+    denominator2 = (1 - jnp.exp(-(rsq / delta)**3)) / jnp.power(denominator1, 3/2)
     #mol = (1 - L(rsq /delta**2 )*jnp.exp(-rsq /delta**2)) # uses p-th order kernel. specified by L
 
     # In the following vec_x has to be an array with shape (NM^3,). Same thing for vec_y and vec_z.
@@ -33,7 +33,7 @@ def Velocity_at_Field(pos, vec, delta, NM):
     # crosses[i, j, k, i', j', k', :] = (pos[i, j, k, :] - pos[i', j', k', :]) x vec[i', j', k', :]
     vec_enhanced = vec[jnp.newaxis, jnp.newaxis, jnp.newaxis, :, :, :, :]
     cross_product = jnp.cross(diffs, vec_enhanced, axisa=-1, axisb=-1)
-    crosses_divided = cross_product / denominator2[..., jnp.newaxis]
+    crosses_divided = cross_product * denominator2[..., jnp.newaxis]
     vel = (1/NM)*(crosses_divided).sum(axis=(-4, -3, -2))
     return vel
 
@@ -61,9 +61,9 @@ def gradient_of_flow_at_a_point(pos, vec, dt, delta, NM):
     # diffs has shape (NM, NM, NM, NM, NM, NM, 3)
     diffs = pos[:, :, :, jnp.newaxis, jnp.newaxis, jnp.newaxis, :] - pos[jnp.newaxis, jnp.newaxis, jnp.newaxis, :, :, :, :]
     rsq = ((diffs)**2).sum(axis=-1)
-    denominator1 = jnp.where(rsq<1e-12, 1e-12, rsq) # prevent division by zero numerically, sensitive
-    denominator2 = jnp.power(denominator1, 3/2)
-    denominator3 = jnp.power(denominator1, 5/2)
+    denominator1 = jnp.where(rsq<1e-2, 1e-2, rsq) # prevent division by zero numerically, sensitive, before it was 1e-12
+    denominator2 = (1 - jnp.exp(-(rsq / delta)**3)) / jnp.power(denominator1, 3/2)
+    denominator3 = (1 - jnp.exp(-(rsq / delta)**3)) / jnp.power(denominator1, 5/2) # THIS IS NOT EXACT!! TO BE CHANGED
     #mol = (1 - L(rsq /delta**2 )*jnp.exp(-rsq /delta**2)) # uses p-th order kernel. specified by L
     denominator2_expanded = denominator2[..., jnp.newaxis, jnp.newaxis]
     denominator3_expanded = denominator3[..., jnp.newaxis, jnp.newaxis]
@@ -73,8 +73,8 @@ def gradient_of_flow_at_a_point(pos, vec, dt, delta, NM):
     # crosses[i, j, k, i', j', k', :] = (pos[i, j, k, :] - pos[i', j', k', :]) x vec[i', j', k', :]
     identity_matrix = jnp.eye(3)
     expanded_identity = identity_matrix[jnp.newaxis, jnp.newaxis, jnp.newaxis, :, :]
-    grad_K_1 = expanded_identity / denominator2_expanded
-    grad_K_2 = jnp.einsum('...i,...j->...ij', diffs, diffs) / denominator3_expanded
+    grad_K_1 = expanded_identity * denominator2_expanded
+    grad_K_2 = jnp.einsum('...i,...j->...ij', diffs, diffs) * denominator3_expanded
     grad_K = grad_K_1 - 3 * grad_K_2
 
     first_column = grad_K[..., 0]
@@ -150,6 +150,8 @@ if __name__ == '__main__':
     print('Test the function CFE')
     initial_positions = pos
     
+
+
     # Test the function VelocityUV
     #A = gradient_of_flow_at_a_point(pos, vec, carr, dt, delta, NM)
     B = integrate(step, pos, vec_matrix, initial_positions, dt, delta, NM)
